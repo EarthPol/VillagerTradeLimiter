@@ -2,9 +2,10 @@ package com.pretzel.dev.villagertradelimiter.wrappers;
 
 import com.pretzel.dev.villagertradelimiter.lib.Util;
 import de.tr7zw.changeme.nbtapi.NBTCompound;
+import de.tr7zw.changeme.nbtapi.iface.ReadWriteNBT;
 
 public class GossipWrapper {
-    private final NBTCompound gossip;
+    private final ReadWriteNBT gossip;
 
     public enum GossipType {
         MAJOR_NEGATIVE(-5),
@@ -20,7 +21,7 @@ public class GossipWrapper {
     }
 
     /** @param gossip The NBTCompound that contains the villager's NBT data of the gossip */
-    public GossipWrapper(final NBTCompound gossip) { this.gossip = gossip; }
+    public GossipWrapper(final ReadWriteNBT gossip) { this.gossip = gossip; }
 
     /** @return The GossipType of this gossip: MAJOR_NEGATIVE, MINOR_NEGATIVE, TRADING, MINOR_POSITIVE, MAJOR_POSITIVE, or OTHER if not found */
     public GossipType getType() {

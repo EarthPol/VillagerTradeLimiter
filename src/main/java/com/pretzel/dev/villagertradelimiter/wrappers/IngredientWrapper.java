@@ -1,10 +1,12 @@
 package com.pretzel.dev.villagertradelimiter.wrappers;
 
 import de.tr7zw.changeme.nbtapi.NBTCompound;
+import de.tr7zw.changeme.nbtapi.iface.ReadWriteNBT;
+import org.bukkit.Material;
 import org.bukkit.inventory.ItemStack;
 
 public class IngredientWrapper {
-    private final NBTCompound recipe;
+    private final ReadWriteNBT recipe;
     private final String key;
     private final ItemStack itemStack;
 
@@ -12,7 +14,7 @@ public class IngredientWrapper {
      * @param recipe The NBTCompound that contains the recipe's NBT data of the ingredient
      * @param key The key under which the recipe is located
      */
-    public IngredientWrapper(final NBTCompound recipe, final String key) {
+    public IngredientWrapper(final ReadWriteNBT recipe, final String key) {
         this.recipe = recipe;
         this.key = key;
         this.itemStack = getItemStack();
@@ -30,6 +32,7 @@ public class IngredientWrapper {
 
     /** Resets the material ID and the amount of this ingredient to default values */
     public void reset() {
+        if (itemStack == null) return;
         setItemStack(itemStack);
     }
 }

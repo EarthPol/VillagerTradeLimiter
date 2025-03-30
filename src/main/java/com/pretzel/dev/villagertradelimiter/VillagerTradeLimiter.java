@@ -4,6 +4,7 @@ import com.pretzel.dev.villagertradelimiter.commands.CommandManager;
 import com.pretzel.dev.villagertradelimiter.commands.CommandBase;
 import com.pretzel.dev.villagertradelimiter.data.PlayerData;
 import com.pretzel.dev.villagertradelimiter.database.DatabaseManager;
+import com.pretzel.dev.villagertradelimiter.lib.Debug;
 import com.pretzel.dev.villagertradelimiter.listeners.InventoryListener;
 import com.pretzel.dev.villagertradelimiter.listeners.VillagerListener;
 import com.pretzel.dev.villagertradelimiter.settings.ConfigUpdater;
@@ -53,6 +54,9 @@ public class VillagerTradeLimiter extends JavaPlugin {
         this.registerCommands();
         this.registerListeners();
 
+        //Initialize debug logging
+        Debug.initialize(this);
+
         //Send enabled message
         Util.consoleMsg(PREFIX+PLUGIN_NAME+" is running!");
     }
@@ -81,6 +85,7 @@ public class VillagerTradeLimiter extends JavaPlugin {
         if(this.databaseManager == null) this.databaseManager = new DatabaseManager(this);
         else onDisable();
         this.databaseManager.load();
+        Debug.initialize(this);
     }
 
     /** Load and initialize the bStats class with the plugin id */

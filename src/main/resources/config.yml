@@ -8,6 +8,9 @@
 # This helps me keep track of what server versions are being used. Please leave this set to true.
 bStats: true
 
+# Enables debug logging.
+debug: false
+
 # Database connection settings
 database:
   mysql: false
