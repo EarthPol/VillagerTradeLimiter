@@ -3,6 +3,7 @@ package com.pretzel.dev.villagertradelimiter.listeners;
 import com.pretzel.dev.villagertradelimiter.VillagerTradeLimiter;
 import com.pretzel.dev.villagertradelimiter.data.Cooldown;
 import com.pretzel.dev.villagertradelimiter.data.PlayerData;
+import com.pretzel.dev.villagertradelimiter.lib.Debug;
 import com.pretzel.dev.villagertradelimiter.lib.Util;
 import com.pretzel.dev.villagertradelimiter.settings.Settings;
 import com.pretzel.dev.villagertradelimiter.wrappers.IngredientWrapper;
@@ -12,6 +13,8 @@ import com.pretzel.dev.villagertradelimiter.wrappers.VillagerWrapper;
 import java.time.Instant;
 import java.util.Date;
 import java.util.List;
+
+import de.tr7zw.changeme.nbtapi.NBT;
 import org.bukkit.Material;
 import org.bukkit.OfflinePlayer;
 import org.bukkit.configuration.ConfigurationSection;
@@ -104,40 +107,42 @@ public class PlayerListener implements Listener {
             return;
         }
 
-        //Wraps the villager and player into wrapper classes
-        final VillagerWrapper villagerWrapper = new VillagerWrapper(villager);
-        final PlayerWrapper otherWrapper = new PlayerWrapper(other);
-        final Player otherPlayer = otherWrapper.getPlayer();
-        if(settings.shouldSkipNPC(player) || settings.shouldSkipNPC(villager) || otherPlayer == null || settings.shouldSkipNPC(otherPlayer)) return; //Skips NPCs
+        NBT.modify(villager, nbtVillager -> {
+            //Wraps the villager and player into wrapper classes
+            final VillagerWrapper villagerWrapper = new VillagerWrapper(villager, nbtVillager);
+            final PlayerWrapper otherWrapper = new PlayerWrapper(other);
+            final Player otherPlayer = otherWrapper.getPlayer();
+            if(settings.shouldSkipNPC(player) || settings.shouldSkipNPC(villager) || otherPlayer == null || settings.shouldSkipNPC(otherPlayer)) return; //Skips NPCs
 
-        final PlayerData playerData = instance.getPlayerData().get(other.getUniqueId());
-        if(playerData != null) playerData.setTradingVillager(villagerWrapper);
+            final PlayerData playerData = instance.getPlayerData().get(other.getUniqueId());
+            if(playerData != null) playerData.setTradingVillager(villagerWrapper);
 
-        //Checks if the version is old, before the 1.16 UUID changes
-        String version = instance.getServer().getClass().getPackage().getName();
-        boolean isOld = version.contains("1_13_") || version.contains("1_14_") || version.contains("1_15_");
+            //Checks if the version is old, before the 1.16 UUID changes
+            String version = instance.getServer().getClass().getPackage().getName();
+            boolean isOld = version.contains("1_13_") || version.contains("1_14_") || version.contains("1_15_");
 
-        //Calculates the player's total reputation and Hero of the Village discount
-        int totalReputation = villagerWrapper.getTotalReputation(villagerWrapper, otherWrapper, isOld);
-        double hotvDiscount = getHotvDiscount(otherWrapper);
+            //Calculates the player's total reputation and Hero of the Village discount
+            int totalReputation = villagerWrapper.getTotalReputation(villagerWrapper, otherWrapper, isOld);
+            double hotvDiscount = getHotvDiscount(otherWrapper);
 
-        //Adjusts the recipe prices, MaxUses, and ingredients
-        final List<RecipeWrapper> recipes = villagerWrapper.getRecipes();
-        for(RecipeWrapper recipe : recipes) {
-            //Set the special price (discount)
-            recipe.setSpecialPrice(getDiscount(recipe, totalReputation, hotvDiscount));
+            //Adjusts the recipe prices, MaxUses, and ingredients
+            final List<RecipeWrapper> recipes = villagerWrapper.getRecipes();
+            for(RecipeWrapper recipe : recipes) {
+                //Set the special price (discount)
+                recipe.setSpecialPrice(getDiscount(recipe, totalReputation, hotvDiscount));
 
-            //Set ingredient materials and amounts
-            final ConfigurationSection override = settings.getOverride(recipe.getItemStack("buy"), recipe.getItemStack("sell"));
-            if(override != null) {
-                setIngredient(override.getConfigurationSection("Item1"), recipe.getIngredient1());
-                setIngredient(override.getConfigurationSection("Item2"), recipe.getIngredient2());
-                setIngredient(override.getConfigurationSection("Result"), recipe.getResult());
+                //Set ingredient materials and amounts
+                final ConfigurationSection override = settings.getOverride(recipe.getItemStack("buy"), recipe.getItemStack("sell"));
+                if(override != null) {
+                    setIngredient(override.getConfigurationSection("Item1"), recipe.getIngredient1());
+                    setIngredient(override.getConfigurationSection("Item2"), recipe.getIngredient2());
+                    setIngredient(override.getConfigurationSection("Result"), recipe.getResult());
+                }
+
+                //Set the maximum number of uses (trades/restock)
+                recipe.setMaxUses(getMaxUses(recipe, other));
             }
-
-            //Set the maximum number of uses (trades/restock)
-            recipe.setMaxUses(getMaxUses(recipe, other));
-        }
+        });
 
         //Open the villager's trading menu
         player.openMerchant(villager, false);
@@ -204,33 +209,72 @@ public class PlayerListener implements Listener {
         int maxUses = settings.fetchInt(recipe, "MaxUses", -1);
         boolean disabled = settings.fetchBoolean(recipe, "Disabled", false);
 
-        //Disables the trade if the player has an active cooldown for the trade
+        // Log initial values for debugging
+        Debug.log("getMaxUses called");
+        Debug.log("Initial uses: " + uses);
+        Debug.log("Initial maxUses (from settings): " + maxUses);
+        Debug.log("Is disabled: " + disabled);
+
+        // Disables the trade if the player has an active cooldown for the trade
         final PlayerData playerData = instance.getPlayerData().get(player.getUniqueId());
-        if(playerData != null && playerData.getTradingVillager() != null) {
+        if (playerData != null && playerData.getTradingVillager() != null) {
+            Debug.log("PlayerData found for player: " + player.getUniqueId());
+
             final ConfigurationSection overrides = instance.getCfg().getConfigurationSection("Overrides");
-            if(overrides != null) {
+            if (overrides != null) {
+                Debug.log("Overrides section found in config");
+
                 final String type = settings.getType(recipe.getItemStack("sell"), recipe.getItemStack("buy"), recipe.getItemStack("buyB"));
+                Debug.log("Trade type: " + type);
+
                 final String global = instance.getCfg().getString("Cooldown", "0");
-                final String local = overrides.getString(type+".Cooldown", global);
-                if(type != null && !local.equals("0")) {
-                    if(playerData.getTradingCooldowns().containsKey(type)) {
+                Debug.log("Global cooldown: " + global);
+
+                final String local = overrides.getString(type + ".Cooldown", global);
+                Debug.log("Local cooldown for type " + type + ": " + local);
+
+                if (type != null && !local.equals("0")) {
+                    Debug.log("Cooldown is not zero, checking if player has an active cooldown...");
+
+                    if (playerData.getTradingCooldowns().containsKey(type)) {
+                        Debug.log("Player has active cooldown for trade type: " + type);
+
                         final Date now = Date.from(Instant.now());
                         final Date lastTrade = Cooldown.parseTime(playerData.getTradingCooldowns().get(type));
                         long cooldown = Cooldown.parseCooldown(local);
-                        if(lastTrade != null && (now.getTime()/1000L >= lastTrade.getTime()/1000L + cooldown)) {
+
+                        Debug.log("Current time: " + now);
+                        Debug.log("Last trade time: " + lastTrade);
+                        Debug.log("Cooldown duration: " + cooldown + " seconds");
+
+                        if (lastTrade != null && (now.getTime() / 1000L >= lastTrade.getTime() / 1000L + cooldown)) {
+                            Debug.log("Cooldown expired. Removing cooldown...");
                             playerData.getTradingCooldowns().remove(type);
                         } else {
                             maxUses = 0;
+                            Debug.log("Cooldown still active. Setting maxUses to 0");
                         }
+                    } else {
+                        Debug.log("No active cooldown found for trade type: " + type);
                     }
+                } else {
+                    Debug.log("Cooldown is zero, no action needed.");
                 }
+            } else {
+                Debug.log("No overrides found in config.");
             }
+        } else {
+            Debug.log("No PlayerData or TradingVillager found for player: " + player.getUniqueId());
         }
 
-        if(maxUses < 0) maxUses = uses;
-        if(disabled) maxUses = 0;
+        // Log the final result of maxUses
+        if (maxUses < 0) maxUses = uses;
+        if (disabled) maxUses = 0;
+
+        Debug.log("Final maxUses: " + maxUses);
         return maxUses;
     }
+
 
     /**
      * @param playerWrapper The wrapped player to check the hotv effect for
@@ -260,14 +304,15 @@ public class PlayerListener implements Listener {
      * @param item The config section that contains the settings for Item1, Item2, or Result items in the trade
      * @param ingredient The respective ingredient to change, based on config.yml
      */
-    private void setIngredient(final ConfigurationSection item, final IngredientWrapper ingredient) {
+    private void setIngredient(final ConfigurationSection item, IngredientWrapper ingredient) {
         if(item == null) return;
-        ItemStack previous = ingredient.getItemStack();
+        ItemStack previous = ingredient.getItemStack() == null ? new ItemStack(Material.AIR) : ingredient.getItemStack();
         Material material = Material.matchMaterial(item.getString("Material", previous.getType().getKey().getKey()));
+        Debug.log("material= " + material.getKey().getKey());
         if (material != null) {
             ingredient.setItemStack(new ItemStack(
-                material,
-                item.getInt("Amount", previous.getAmount())
+                    material,
+                    item.getInt("Amount", previous.getAmount())
             ));
         }
     }

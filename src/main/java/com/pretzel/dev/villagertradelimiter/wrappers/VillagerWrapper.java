@@ -1,25 +1,30 @@
 package com.pretzel.dev.villagertradelimiter.wrappers;
 
+import com.pretzel.dev.villagertradelimiter.lib.Debug;
+import de.tr7zw.changeme.nbtapi.NBT;
 import de.tr7zw.changeme.nbtapi.NBTCompound;
 import de.tr7zw.changeme.nbtapi.NBTCompoundList;
 import de.tr7zw.changeme.nbtapi.NBTEntity;
 import de.tr7zw.changeme.nbtapi.iface.ReadWriteNBT;
+import de.tr7zw.changeme.nbtapi.iface.ReadWriteNBTCompoundList;
 import org.bukkit.entity.Villager;
 import org.bukkit.inventory.ItemStack;
 import org.checkerframework.checker.nullness.qual.NonNull;
+import org.checkerframework.checker.units.qual.A;
 
 import java.util.ArrayList;
 import java.util.List;
 
 public class VillagerWrapper {
     private final Villager villager;
-    private final NBTEntity entity;
     private final ItemStack[] contents;
+    private final ReadWriteNBT nbtVillager;
+    private ArrayList<ReadWriteNBT> originalRecipes = new ArrayList<>();
 
     /** @param villager The Villager to store in this wrapper */
-    public VillagerWrapper(final Villager villager) {
+    public VillagerWrapper(final Villager villager, ReadWriteNBT nbtVillager) {
         this.villager = villager;
-        this.entity = new NBTEntity(villager);
+        this.nbtVillager = nbtVillager;
         this.contents = new ItemStack[villager.getInventory().getContents().length];
         for(int i = 0; i < this.contents.length; i++) {
             ItemStack item = villager.getInventory().getItem(i);
@@ -32,11 +37,14 @@ public class VillagerWrapper {
         final List<RecipeWrapper> recipes = new ArrayList<>();
 
         //Add the recipes from the villager's NBT data into a list of wrapped recipes
-        final NBTCompound offers = entity.getCompound("Offers");
+        final ReadWriteNBT offers = nbtVillager.getCompound("Offers");
         if(offers == null) return recipes;
-        final NBTCompoundList nbtRecipes = offers.getCompoundList("Recipes");
+        final ReadWriteNBTCompoundList nbtRecipes = offers.getCompoundList("Recipes");
         for(ReadWriteNBT nbtRecipe : nbtRecipes) {
-            recipes.add(new RecipeWrapper((NBTCompound)nbtRecipe));
+            recipes.add(new RecipeWrapper(nbtRecipe));
+            ReadWriteNBT newRecipe = NBT.createNBTObject();
+            newRecipe.mergeCompound(nbtRecipe);
+            originalRecipes.add(newRecipe);
         }
         return recipes;
     }
@@ -44,12 +52,12 @@ public class VillagerWrapper {
     /** @return A list of wrapped gossips for the villager */
     private List<GossipWrapper> getGossips() {
         final List<GossipWrapper> gossips = new ArrayList<>();
-        if(!entity.hasTag("Gossips")) return gossips;
+        if(!nbtVillager.hasTag("Gossips")) return gossips;
 
         //Add the gossips from the villager's NBT data into a list of wrapped gossips
-        final NBTCompoundList nbtGossips = entity.getCompoundList("Gossips");
+        final ReadWriteNBTCompoundList nbtGossips = nbtVillager.getCompoundList("Gossips");
         for(ReadWriteNBT nbtGossip : nbtGossips) {
-            gossips.add(new GossipWrapper((NBTCompound) nbtGossip));
+            gossips.add(new GossipWrapper(nbtGossip));
         }
         return gossips;
     }
@@ -79,12 +87,39 @@ public class VillagerWrapper {
 
     /** Resets the villager's NBT data to default */
     public void reset() {
-        //Reset the recipes back to their default ingredients, MaxUses, and discounts
-        for(RecipeWrapper recipe : this.getRecipes()) {
-            recipe.reset();
-        }
+        // Reset the recipes back to their default ingredients, MaxUses, and discounts
+        NBT.modify(villager, nbtVillager -> {
+            ReadWriteNBT offers = nbtVillager.getCompound("Offers");
+            ReadWriteNBTCompoundList recipes = offers.getCompoundList("Recipes");
 
+            // Log to track recipe reset progress
+            Debug.log("Resetting villager recipes...");
+
+            // Loop through the original recipes and selectively update the ones that need resetting
+            for (int i = 0; i < recipes.size(); i++) {
+                ReadWriteNBT currentRecipe = recipes.get(i);
+                ReadWriteNBT originalRecipe = originalRecipes.get(i);
+
+                // Only reset the ingredients and MaxUses of the recipe, leave other properties intact
+                currentRecipe.setItemStack("buy", originalRecipe.getItemStack("buy"));
+                if (originalRecipe.getItemStack("buyB") != null) {
+                    currentRecipe.setItemStack("buyB", originalRecipe.getItemStack("buyB"));
+                }
+                currentRecipe.setItemStack("sell", originalRecipe.getItemStack("sell"));
+                currentRecipe.setInteger("maxUses", originalRecipe.getInteger("maxUses"));
+                currentRecipe.setInteger("specialPrice", originalRecipe.getInteger("specialPrice"));
+
+                // Log recipe data for debugging
+                Debug.log("Reset recipe " + i + ": " + currentRecipe);
+            }
+        });
+
+        // Reset inventory items
         this.villager.getInventory().clear();
         this.villager.getInventory().setContents(this.contents);
+
+        // Log inventory reset
+        Debug.log("Villager inventory has been reset.");
     }
+
 }

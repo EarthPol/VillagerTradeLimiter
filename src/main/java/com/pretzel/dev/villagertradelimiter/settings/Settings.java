@@ -1,6 +1,7 @@
 package com.pretzel.dev.villagertradelimiter.settings;
 
 import com.pretzel.dev.villagertradelimiter.VillagerTradeLimiter;
+import com.pretzel.dev.villagertradelimiter.lib.Debug;
 import com.pretzel.dev.villagertradelimiter.lib.Util;
 import com.pretzel.dev.villagertradelimiter.wrappers.RecipeWrapper;
 import org.bukkit.Material;
@@ -75,39 +76,84 @@ public class Settings {
      * @param ingredient2 The itemstack for the recipe's second ingredient
      * @return The matched type of the item, if any
      */
-    public String getType(final ItemStack result, final ItemStack ingredient1, final ItemStack ingredient2) {
+    public String getType(final ItemStack result, final ItemStack ingredient1, ItemStack ingredient2) {
+        // Get the result item type
         final String resultType = result.getType().name().toLowerCase();
+        // Get the first ingredient item type
         final String ingredient1Type = ingredient1.getType().name().toLowerCase();
-        final String ingredient2Type = ingredient2.getType().name().toLowerCase();
+        // Get the second ingredient item type (or "air" if null)
+        final String ingredient2Type = ingredient2 == null ? "air" : ingredient2.getType().name().toLowerCase();
+
+        // Output the variables for debugging
+        Debug.log("Result Type: " + resultType);
+        Debug.log("Ingredient 1 Type: " + ingredient1Type);
+        Debug.log("Ingredient 2 Type: " + ingredient2Type);
+
         final String defaultType;
-        if(result.getType() == Material.EMERALD) {
-            if(ingredient1.getType() == Material.BOOK || ingredient1.getType() == Material.AIR) {
+
+        // Debug the decision process for determining the defaultType
+        if (result.getType() == Material.EMERALD) {
+            Debug.log("Result is EMERALD, checking ingredients...");
+            if (ingredient1.getType() == Material.BOOK || ingredient1.getType() == Material.AIR) {
                 defaultType = ingredient2Type;
+                Debug.log("Ingredient 1 is BOOK or AIR, defaultType set to ingredient2Type: " + defaultType);
             } else {
                 defaultType = ingredient1Type;
+                Debug.log("Ingredient 1 is not BOOK or AIR, defaultType set to ingredient1Type: " + defaultType);
             }
         } else {
             defaultType = resultType;
+            Debug.log("Result is not EMERALD, defaultType set to resultType: " + defaultType);
         }
 
-        if(result.getType() == Material.ENCHANTED_BOOK) {
+        // Debug for ENCHANTED_BOOK handling
+        if (result.getType() == Material.ENCHANTED_BOOK) {
             final EnchantmentStorageMeta meta = (EnchantmentStorageMeta) result.getItemMeta();
-            if(meta == null) return defaultType;
-            for(Enchantment key : meta.getStoredEnchants().keySet()) {
+            if (meta == null) return defaultType;
+
+            Debug.log("Handling ENCHANTED_BOOK, checking stored enchants...");
+            for (Enchantment key : meta.getStoredEnchants().keySet()) {
                 if (key != null) {
-                    final String itemType = key.getKey().getKey() +"_"+meta.getStoredEnchantLevel(key);
-                    if(getItem(ingredient1, result, itemType) != null) return itemType;
+                    final String itemType = key.getKey().getKey() + "_" + meta.getStoredEnchantLevel(key);
+                    Debug.log("Enchantment found: " + itemType);
+
+                    if (getItem(ingredient1, result, itemType) != null) {
+                        Debug.log("Found matching item with itemType: " + itemType);
+                        return itemType;
+                    }
                 }
             }
+            Debug.log("No matching enchantment, returning defaultType: " + defaultType);
             return defaultType;
         }
 
+        // Ensure ingredient2 is set to AIR if it's null
+        if (ingredient2 == null) {
+            ingredient2 = new ItemStack(Material.AIR);
+            Debug.log("Ingredient 2 was null, setting to AIR");
+        }
+
+        // Determine which ingredient to use
         final ItemStack ingredient = (ingredient1.getType() == Material.AIR ? ingredient2 : ingredient1);
-        if(getItem(ingredient, result, resultType) != null) return resultType;
-        if(getItem(ingredient, result, ingredient1Type) != null) return ingredient1Type;
-        if(getItem(ingredient, result, ingredient2Type) != null) return ingredient2Type;
+
+        // Debug the item checks
+        if (getItem(ingredient, result, resultType) != null) {
+            Debug.log("Found matching item with resultType: " + resultType);
+            return resultType;
+        }
+        if (getItem(ingredient, result, ingredient1Type) != null) {
+            Debug.log("Found matching item with ingredient1Type: " + ingredient1Type);
+            return ingredient1Type;
+        }
+        if (getItem(ingredient, result, ingredient2Type) != null) {
+            Debug.log("Found matching item with ingredient2Type: " + ingredient2Type);
+            return ingredient2Type;
+        }
+
+        Debug.log("No match found, returning defaultType: " + defaultType);
         return defaultType;
     }
+
 
     /**
      * @param buy The first ingredient of the recipe

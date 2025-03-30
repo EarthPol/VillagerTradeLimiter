@@ -9,3 +9,4 @@ bin
 /.idea/
 /.git/
 /out/
+/run/

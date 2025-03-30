@@ -139,7 +139,7 @@ public class InventoryListener implements Listener {
     private MerchantRecipe getSelectedRecipe(final Villager villager, final ItemStack ingredient1, final ItemStack ingredient2, final ItemStack result) {
         for(MerchantRecipe recipe : villager.getRecipes()) {
             final ItemStack item1 = recipe.getIngredients().get(0);
-            final ItemStack item2 = recipe.getIngredients().get(1);
+            final ItemStack item2 = recipe.getIngredients().size() > 1 ? recipe.getIngredients().get(1) : new ItemStack(Material.AIR);
             if(!recipe.getResult().isSimilar(result)) continue;
             if((item1.isSimilar(ingredient1) && item2.isSimilar(ingredient2)) || (item1.isSimilar(ingredient2) && item2.isSimilar(ingredient1)))
                 return recipe;
