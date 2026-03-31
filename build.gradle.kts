@@ -17,7 +17,7 @@ dependencies {
     compileOnly("io.papermc.paper:paper-api:1.21.11-R0.1-SNAPSHOT")
     
     // External dependencies
-    implementation("de.tr7zw:item-nbt-api:2.14.1")
+    implementation("de.tr7zw:item-nbt-api:2.15.6")
     compileOnly("de.tr7zw:functional-annotations:0.1-SNAPSHOT")
     compileOnly("mysql:mysql-connector-java:8.0.33")
     compileOnly("org.xerial:sqlite-jdbc:3.40.1.0")
@@ -39,7 +39,15 @@ tasks {
         }
     }
 
-    // Task to compile your jar file (ShadowJar)
+    jar {
+        enabled = false
+    }
+
+    shadowJar {
+        archiveClassifier.set("")
+        relocate("de.tr7zw.changeme.nbtapi", "com.pretzel.dev.villagertradelimiter.lib.nbtapi")
+    }
+
     assemble {
         dependsOn(shadowJar)
     }
