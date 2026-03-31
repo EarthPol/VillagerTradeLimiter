@@ -13,7 +13,6 @@ import org.bukkit.entity.Villager;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
-import org.bukkit.util.Vector;
 
 import java.util.Arrays;
 
@@ -105,24 +104,13 @@ public class CommandManager {
      * @return The closest entity to the player, that the player is looking at
      */
     private Entity getClosestEntity(final Player player) {
-        Entity closestEntity = null;
-        double closestDistance = Double.MAX_VALUE;
-        for(Entity entity : player.getNearbyEntities(10, 10, 10)) {
-            if(entity instanceof Villager) {
-                Location eye = player.getEyeLocation();
-                Vector toEntity = ((Villager) entity).getEyeLocation().toVector().subtract(eye.toVector());
-                double dot = toEntity.normalize().dot(eye.getDirection());
-                double distance = eye.distance(((Villager)entity).getEyeLocation());
-                if(dot > 0.99D && distance < closestDistance) {
-                    closestEntity = entity;
-                    closestDistance = distance;
-                }
-            }
+        final Entity target = player.getTargetEntity(10);
+        if (target instanceof Villager) {
+            return target;
         }
-        if(closestEntity == null) {
-            Util.sendMsg(instance.getLang("see.novillager"), player);
-        }
-        return closestEntity;
+
+        Util.sendMsg(instance.getLang("see.novillager"), player);
+        return null;
     }
 
     /**

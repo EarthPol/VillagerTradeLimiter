@@ -54,11 +54,7 @@ public class DatabaseManager {
                     if(date == null) continue;
                     long time = date.getTime();
 
-                    PlayerData data = instance.getPlayerData().get(uuid);
-                    if(data == null) {
-                        data = new PlayerData();
-                        instance.getPlayerData().put(uuid, data);
-                    }
+                    PlayerData data = instance.getPlayerData().computeIfAbsent(uuid, ignored -> new PlayerData());
 
                     String key = (Bukkit.getEntity(uuid) instanceof Villager ? "Restock" : "Cooldown");
                     String cooldownStr = instance.getCfg().getString(key, "0");
@@ -104,4 +100,3 @@ public class DatabaseManager {
         else this.database.execute(sql, false);
     }
 }
-

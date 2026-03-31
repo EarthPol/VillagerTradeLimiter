@@ -84,12 +84,8 @@ public class PlayerListener implements Listener {
 
         //Cancel the original event, and open the adjusted trade view
         //event.setCancelled(true);
-        if(!instance.getPlayerData().containsKey(player.getUniqueId())) {
-            instance.getPlayerData().put(player.getUniqueId(), new PlayerData());
-        }
-        if(!instance.getPlayerData().containsKey(villager.getUniqueId())) {
-            instance.getPlayerData().put(villager.getUniqueId(), new PlayerData());
-        }
+        instance.getPlayerData().computeIfAbsent(player.getUniqueId(), ignored -> new PlayerData());
+        instance.getPlayerData().computeIfAbsent(villager.getUniqueId(), ignored -> new PlayerData());
 
         this.see(villager, player, player);
     }

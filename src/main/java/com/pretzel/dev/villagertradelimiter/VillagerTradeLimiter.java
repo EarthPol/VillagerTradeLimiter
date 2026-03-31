@@ -8,12 +8,10 @@ import com.pretzel.dev.villagertradelimiter.lib.Debug;
 import com.pretzel.dev.villagertradelimiter.listeners.InventoryListener;
 import com.pretzel.dev.villagertradelimiter.listeners.VillagerListener;
 import com.pretzel.dev.villagertradelimiter.settings.ConfigUpdater;
-import com.pretzel.dev.villagertradelimiter.lib.Metrics;
 import com.pretzel.dev.villagertradelimiter.lib.Util;
 import com.pretzel.dev.villagertradelimiter.listeners.PlayerListener;
 import com.pretzel.dev.villagertradelimiter.settings.Lang;
 import com.pretzel.dev.villagertradelimiter.settings.Settings;
-import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
 import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.configuration.file.YamlConfiguration;
@@ -22,33 +20,33 @@ import org.bukkit.plugin.java.JavaPlugin;
 
 import java.io.File;
 import java.io.IOException;
-import java.util.*;
+import java.util.Collections;
+import java.util.Map;
+import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
 
 public class VillagerTradeLimiter extends JavaPlugin {
     public static final String PLUGIN_NAME = "VillagerTradeLimiter";
     public static final String PREFIX = ChatColor.GOLD+"["+PLUGIN_NAME+"] ";
-    private static final int BSTATS_ID = 9829;
 
     //Settings
-    private FileConfiguration cfg;
-    private Lang lang;
+    private volatile FileConfiguration cfg;
+    private volatile Lang lang;
     private CommandManager commandManager;
     private DatabaseManager databaseManager;
     private PlayerListener playerListener;
-    private HashMap<UUID, PlayerData> playerData;
+    private final Map<UUID, PlayerData> playerData = new ConcurrentHashMap<>();
 
     /** Initial plugin load/unload */
     public void onEnable() {
         //Initialize instance variables
         this.cfg = null;
         this.commandManager = new CommandManager(this);
-        this.playerData = new HashMap<>();
 
         //Copy default settings & load settings
         this.getConfig().options().copyDefaults();
         this.saveDefaultConfig();
         this.loadSettings();
-        this.loadBStats();
 
         //Register commands and listeners
         this.registerCommands();
@@ -63,6 +61,11 @@ public class VillagerTradeLimiter extends JavaPlugin {
 
     /** Save database on plugin stop, server stop */
     public void onDisable() {
+        if (this.databaseManager == null) {
+            this.playerData.clear();
+            return;
+        }
+
         for(UUID uuid : playerData.keySet()) {
             this.databaseManager.savePlayer(uuid, false);
         }
@@ -86,13 +89,6 @@ public class VillagerTradeLimiter extends JavaPlugin {
         else onDisable();
         this.databaseManager.load();
         Debug.initialize(this);
-    }
-
-    /** Load and initialize the bStats class with the plugin id */
-    private void loadBStats() {
-        if(this.cfg.getBoolean("bStats", true)) {
-            new Metrics(this, BSTATS_ID);
-        }
     }
 
     /** Registers plugin commands */
@@ -124,7 +120,7 @@ public class VillagerTradeLimiter extends JavaPlugin {
     public PlayerListener getPlayerListener() { return this.playerListener; }
 
     /** @return a player's data container */
-    public HashMap<UUID, PlayerData> getPlayerData() { return this.playerData; }
+    public Map<UUID, PlayerData> getPlayerData() { return this.playerData; }
 
     /** @return the invsee inventory's barrier block */
     public ItemStack getBarrier() { return this.commandManager.getBarrier(); }

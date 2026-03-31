@@ -1,8 +1,7 @@
 plugins {
     `java-library`
     id("xyz.jpenilla.run-paper") version "2.3.1"
-    id("io.papermc.paperweight.userdev") version "2.0.0-beta.16"
-    id("com.github.johnrengelman.shadow") version "8.1.1"
+    id("com.gradleup.shadow") version "9.2.1"
 }
 
 repositories {
@@ -15,8 +14,7 @@ repositories {
 }
 
 dependencies {
-    paperweight.paperDevBundle("1.21.4-R0.1-SNAPSHOT")
-    compileOnly("org.spigotmc:spigot-api:1.21.4-R0.1-SNAPSHOT")
+    compileOnly("io.papermc.paper:paper-api:1.21.11-R0.1-SNAPSHOT")
     
     // External dependencies
     implementation("de.tr7zw:item-nbt-api:2.14.1")
@@ -35,7 +33,7 @@ description = "VillagerTradeLimiter"
 
 tasks {
     runServer {
-        minecraftVersion("1.21.4")
+        minecraftVersion("1.21.11")
         downloadPlugins {
             url("https://github.com/Test-Account666/PlugManX/releases/download/2.4.1/PlugManX-2.4.1.jar")
         }
@@ -43,7 +41,7 @@ tasks {
 
     // Task to compile your jar file (ShadowJar)
     assemble {
-        dependsOn(reobfJar)
+        dependsOn(shadowJar)
     }
 }
 

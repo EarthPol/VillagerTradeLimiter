@@ -10,3 +10,5 @@ bin
 /.git/
 /out/
 /run/
+/.gradle
+/build

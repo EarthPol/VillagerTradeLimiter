@@ -1,8 +1,8 @@
 package com.pretzel.dev.villagertradelimiter.database;
 
 import com.pretzel.dev.villagertradelimiter.lib.Callback;
+import com.pretzel.dev.villagertradelimiter.lib.SchedulerCompat;
 import com.pretzel.dev.villagertradelimiter.lib.Util;
-import org.bukkit.Bukkit;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.plugin.java.JavaPlugin;
 
@@ -53,9 +53,9 @@ public abstract class Database {
         return null;
     }
     public void execute(final String sql, boolean query, final Callback<ArrayList<String>> callback) {
-        Bukkit.getScheduler().runTaskAsynchronously(this.instance, () -> {
+        SchedulerCompat.runAsync(this.instance, () -> {
             final ArrayList<String> result = execute(sql, query);
-            if(callback != null) Bukkit.getScheduler().runTask(this.instance, () -> callback.call(result));
+            if(callback != null) SchedulerCompat.runGlobal(this.instance, () -> callback.call(result));
         });
     }
 

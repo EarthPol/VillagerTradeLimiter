@@ -3,9 +3,9 @@ package com.pretzel.dev.villagertradelimiter.listeners;
 import com.pretzel.dev.villagertradelimiter.VillagerTradeLimiter;
 import com.pretzel.dev.villagertradelimiter.data.Cooldown;
 import com.pretzel.dev.villagertradelimiter.data.PlayerData;
+import com.pretzel.dev.villagertradelimiter.lib.SchedulerCompat;
 import com.pretzel.dev.villagertradelimiter.settings.Settings;
 import com.pretzel.dev.villagertradelimiter.wrappers.VillagerWrapper;
-import org.bukkit.Bukkit;
 import org.bukkit.Material;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.entity.Player;
@@ -20,6 +20,7 @@ import org.bukkit.inventory.MerchantRecipe;
 
 import java.time.Instant;
 import java.util.Date;
+import java.util.UUID;
 
 public class InventoryListener implements Listener {
 
@@ -48,7 +49,7 @@ public class InventoryListener implements Listener {
         //If the inventory matches the invsee inventory, cancel click events
         event.setCancelled(true);
         if(event.getCurrentItem() != null && event.getCurrentItem().isSimilar(instance.getBarrier())) {
-            Bukkit.getScheduler().runTaskLater(instance, () -> event.getWhoClicked().closeInventory(), 0L);
+            SchedulerCompat.runNextTick(instance, event.getWhoClicked(), event.getWhoClicked()::closeInventory);
         }
     }
 
@@ -112,21 +113,28 @@ public class InventoryListener implements Listener {
         }
 
         //Add a cooldown to the trade if the player has reached the max uses
-        final PlayerData playerData = instance.getPlayerData().get(player.getUniqueId());
-        final PlayerData villagerData = instance.getPlayerData().get(villager.getUniqueId());
+        final UUID playerId = player.getUniqueId();
+        final UUID villagerId = villager.getUniqueId();
+        final PlayerData playerData = instance.getPlayerData().get(playerId);
         if(playerData == null || playerData.getTradingVillager() == null) return;
-        Bukkit.getScheduler().runTaskLater(instance, () -> {
+        SchedulerCompat.runDelayed(instance, villager, 1L, () -> {
+            final PlayerData delayedPlayerData = instance.getPlayerData().get(playerId);
+            final PlayerData delayedVillagerData = instance.getPlayerData().get(villagerId);
+            if (delayedPlayerData == null) {
+                return;
+            }
+
             int uses = selectedRecipe.getUses();
             final String time = Cooldown.formatTime(Date.from(Instant.now()));
             if(uses >= selectedRecipe.getMaxUses()) {
-                if(!playerData.getTradingCooldowns().containsKey(type)) {
-                    playerData.getTradingCooldowns().put(type, time);
+                if(!delayedPlayerData.getTradingCooldowns().containsKey(type)) {
+                    delayedPlayerData.getTradingCooldowns().put(type, time);
                 }
-                if(villagerData != null && !villagerData.getTradingCooldowns().containsKey(type)) {
-                    villagerData.getTradingCooldowns().put(type, time);
+                if(delayedVillagerData != null && !delayedVillagerData.getTradingCooldowns().containsKey(type)) {
+                    delayedVillagerData.getTradingCooldowns().put(type, time);
                 }
             }
-        }, 1);
+        });
     }
 
     /**
